@@ -9,6 +9,11 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_DB: engieerassistant
+      POSTGRES_DB: engineerassistant
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
