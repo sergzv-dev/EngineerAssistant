@@ -1,17 +1,12 @@
-import redis
 import uuid
 import json
-import os
-from dotenv import load_dotenv
 from custom_exceptions import QueueFullError
+from connections import get_redis_connection
 
-load_dotenv()
-HOST = os.getenv('REDIS_HOST')
-PORT = int(os.getenv('REDIS_PORT'))
 
-class DBConnector:
+class TaskBroker:
     def __init__(self):
-        self.redis_client = redis.Redis(host=HOST, port=PORT, decode_responses=True)
+        self.redis_client = get_redis_connection()
 
     def add_task(self, data: str) -> str:
         if self.redis_client.llen('active_tasks') < 50:
