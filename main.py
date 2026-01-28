@@ -1,9 +1,9 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Query
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from typing import Annotated
 from task_broker import TaskBroker
-from models import UserInDB, UserSignUP
-from repository import UserRepository
+from models import UserInDB, UserSignUP, MessageGet, MessagesOut
+from repository import UserRepository, MessageRepository
 from security.hash_manager import hash_password, verify_password
 from security.token_manager import create_access_token, verify_token
 import jwt
@@ -13,6 +13,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl = '/login')
 
 t_broker = TaskBroker()
 user_repo = UserRepository()
+message_repo = MessageRepository()
 
 def get_current_userid(token: Annotated[str, Depends(oauth2_scheme)]) -> int:
     try:
@@ -54,6 +55,13 @@ async def question(req_data: str, user_id: Annotated[int, Depends(get_current_us
 @app.get('/question/result/{task_id}')
 async def answer(task_id: str) -> str|None:
     return t_broker.get_task(task_id)
+
+@app.get('/question/chat')
+async def get_chat(limit: Annotated[int, Query(20, ge=1, le=100)],
+                   offset: Annotated[int, Query(0, ge=0)],
+                   user_id: Annotated[int, Depends(get_current_userid)]
+                   ) -> MessagesOut:
+    return message_repo.get_messages(MessageGet(limit=limit, offset=offset, user_id=user_id))
 
 #test endpoints
 @app.get('/users/all')
