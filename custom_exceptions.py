@@ -1,2 +1,2 @@
-class QueueFullError(Exception):
+class BrokerUnavailable(Exception):
     pass

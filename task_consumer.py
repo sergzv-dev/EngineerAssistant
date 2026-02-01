@@ -1,23 +1,33 @@
 from worker import Worker
 import json
-from multiprocessing import Pool
+import asyncio
 from connections import get_redis_connection
+from repository import MessageRepository
+from models import Answer
 
-def task_consumer(task):
-    task_id = task['task_id']
-    data = task['data']
-
-    w_redis_client = get_redis_connection()
-    res = Worker.execute(data)
-    w_redis_client.hset('done_tasks', task_id, res)
+message_repo = MessageRepository()
 
 
-if __name__ == '__main__':
+async def task_consumer():
+    print('Worker started')
+
     redis_client = get_redis_connection()
 
-    with Pool(processes=4) as pool:
-
-        while True:
-            _, payload = redis_client.brpop('active_tasks')
+    while True:
+        try:
+            result = await redis_client.brpop('active_tasks', timeout=5)
+            if result is None:
+                continue
+            _, payload = result
             task = json.loads(payload)
-            pool.apply_async(task_consumer, args=(task,))
+            user_id = task['user_id']
+            data = task['message']
+            message = Worker.execute(data)
+            message_repo.put_message(Answer(user_id=user_id, message=message))
+
+        except Exception as e:
+            print("Worker error:", e)
+            await asyncio.sleep(1)
+
+if __name__ == '__main__':
+    asyncio.run(task_consumer())

@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 import psycopg
-import redis
+from redis.asyncio import Redis
 
 load_dotenv()
 
@@ -15,6 +15,8 @@ def get_pg_connection():
     )
 
 def get_redis_connection():
-    return redis.Redis(host=os.getenv('REDIS_HOST'),
-                       port=int(os.getenv('REDIS_PORT')),
-                       decode_responses=True)
+    return Redis(host=os.getenv('REDIS_HOST'),
+                 port=int(os.getenv('REDIS_PORT')),
+                 decode_responses=True,
+                 socket_timeout=5,
+                 socket_connect_timeout=2)

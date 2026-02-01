@@ -43,3 +43,16 @@ class MessagesOut(BaseModel):
     offset: int
     total: int
     data: list[MessageModel]
+
+class QuestionsCreate(BaseModel):
+    message: str
+
+
+#responses
+class ServerResponse(BaseModel):
+    obj: str
+    status: str
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str

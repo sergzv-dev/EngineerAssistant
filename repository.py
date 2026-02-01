@@ -7,12 +7,14 @@ class Repository:
         return get_pg_connection()
 
 class UserRepository(Repository):
-    def add_user(self, user: UserInDB) -> None:
+    def add_user(self, user: UserInDB) -> int:
         with self.get_conn() as conn:
             with conn.cursor() as cursor:
                 cursor.execute('''INSERT INTO users (username, email, hashed_password)
-                                VALUES (%(username)s, %(email)s, %(hashed_password)s)''',
+                                VALUES (%(username)s, %(email)s, %(hashed_password)s) RETURNING id''',
                                user.model_dump(include={'username', 'email', 'hashed_password'}))
+                user_id = int(cursor.fetchone()[0])
+                return user_id
 
     def get_user_auth_data(self, username) -> UserLoginInDB|None:
         with self.get_conn() as conn:
@@ -34,11 +36,14 @@ class UserRepository(Repository):
 
 
 class MessageRepository(Repository):
-    def put_message(self, message: Question|Answer):
+    def put_message(self, message: Question|Answer) -> int:
         with self.get_conn() as conn:
             with conn.cursor() as cursor:
-                cursor.execute('INSERT INTO messages (user_id, message, message_type) VALUES (%(user_id)s, %(message)s, %(message_type)s)',
+                cursor.execute('''INSERT INTO messages (user_id, message, message_type)
+                                  VALUES (%(user_id)s, %(message)s, %(message_type)s) RETURNING id''',
                                message.model_dump(include={'user_id', 'message', 'message_type'}))
+                message_id = int(cursor.fetchone()[0])
+                return message_id
 
     def get_messages(self, req: MessageGet) -> MessagesOut:
         with self.get_conn() as conn:
@@ -48,7 +53,7 @@ class MessageRepository(Repository):
                                req.model_dump())
                 rows = cursor.fetchall()
                 data = [MessageModel(id=row[0], user_id=row[1], message=row[2], message_type=row[3], created_at=row[4]) for row in rows]
-                cursor.execute('SELECT COUNT(*) FROM messages WHERE user_id = %(user_id)', {'user_id': req.user_id})
+                cursor.execute('SELECT COUNT(*) FROM messages WHERE user_id = %(user_id)s', {'user_id': req.user_id})
                 total = cursor.fetchone()[0]
                 return MessagesOut(limit = req.limit, offset = req.offset, total = total, data=data)
 
