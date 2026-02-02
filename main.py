@@ -10,14 +10,14 @@ from security.token_manager import create_access_token, verify_token
 import jwt
 from custom_exceptions import BrokerUnavailable
 from contextlib import asynccontextmanager
+from connections import init_pool, open_pg_pool_connection, close_pg_pool_connection
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await user_repo.connection.open_connection()
-    await message_repo.connection.open_connection()
+    init_pool()
+    await open_pg_pool_connection()
     yield
-    await user_repo.connection.close_connection()
-    await message_repo.connection.close_connection()
+    await close_pg_pool_connection()
 
 app = FastAPI(lifespan=lifespan)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl = '/login')

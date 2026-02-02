@@ -1,12 +1,10 @@
 from models import UserInDB, UserLoginInDB, MessageModel, Answer, Question, MessageGet, MessagesOut
-from connections import PGConnectionPool
+from connections import get_pg_pool_connection
 
 class Repository:
-    def __init__(self):
-        self.connection = PGConnectionPool()
-
-    def get_conn(self):
-        return self.connection.get_conn()
+    @classmethod
+    def get_conn(cls):
+        return get_pg_pool_connection()
 
 class UserRepository(Repository):
     async def add_user(self, user: UserInDB) -> int:

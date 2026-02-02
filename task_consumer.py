@@ -1,21 +1,21 @@
 from worker import Worker
 import json
 import asyncio
-from connections import get_redis_connection
+from connections import get_redis_connection, init_pool, open_pg_pool_connection, close_pg_pool_connection
 from repository import MessageRepository
 from models import Answer
 
 async def task_consumer():
     print('Worker started')
+    init_pool()
+    await open_pg_pool_connection()
 
     redis_client = get_redis_connection()
     message_repo = MessageRepository()
 
-    await message_repo.connection.open_connection()
-
     while True:
         try:
-            result = await redis_client.brpop('active_tasks', timeout=5)
+            result = await redis_client.brpop('active_tasks', timeout=10)
             if result is None:
                 continue
             _, payload = result
@@ -29,9 +29,8 @@ async def task_consumer():
             print("Worker error:", e)
             await asyncio.sleep(1)
 
-        except KeyboardInterrupt as e:
-            message_repo.connection.close_connection()
-            raise e
+        finally:
+            await close_pg_pool_connection()
 
 if __name__ == '__main__':
     asyncio.run(task_consumer())
