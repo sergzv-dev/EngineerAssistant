@@ -1,9 +1,12 @@
-from connections import get_pg_connection
+from connections import PGConnectionPool
 
-def create_tables() -> None:
-    with get_pg_connection() as conn:
-        with conn.cursor() as cursor:
-            cursor.execute("""
+async def create_tables() -> None:
+    connection = PGConnectionPool()
+    await connection.open_connection()
+
+    async with connection.get_conn() as conn:
+        async with conn.cursor() as cursor:
+            await cursor.execute("""
                 CREATE TABLE IF NOT EXISTS users
                 (
                     id SERIAL PRIMARY KEY,
@@ -14,7 +17,7 @@ def create_tables() -> None:
                 );
             """)
 
-            cursor.execute("""
+            await cursor.execute("""
                 CREATE TABLE IF NOT EXISTS messages
                 (
                     id         SERIAL PRIMARY KEY,
@@ -26,12 +29,20 @@ def create_tables() -> None:
                 );
             """)
 
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_messages_user_id_created ON messages (user_id, created_at DESC);")
+            await cursor.execute("CREATE INDEX IF NOT EXISTS idx_messages_user_id_created ON messages (user_id, created_at DESC);")
 
-def drop_tables() -> None:
-    with get_pg_connection() as conn:
-        with conn.cursor() as cursor:
-            cursor.execute("DROP TABLE users")
-            cursor.execute("DROP TABLE messages")
+    await connection.close_connection()
+
+
+async def drop_tables() -> None:
+    connection = PGConnectionPool()
+    await connection.open_connection()
+
+    async with connection.get_conn() as conn:
+        async with conn.cursor() as cursor:
+            await cursor.execute("DROP TABLE users")
+            await cursor.execute("DROP TABLE messages")
+
+    await connection.close_connection()
 
 create_tables()
