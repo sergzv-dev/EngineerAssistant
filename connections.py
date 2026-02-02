@@ -1,18 +1,38 @@
 import os
 from dotenv import load_dotenv
-import psycopg
+from psycopg_pool import AsyncConnectionPool
 from redis.asyncio import Redis
 
 load_dotenv()
 
-def get_pg_connection():
-    return psycopg.connect(
-        host=os.getenv('POSTGRES_HOST'),
-        port=os.getenv('POSTGRES_PORT'),
-        dbname=os.getenv('POSTGRES_DB'),
-        user=os.getenv('POSTGRES_USER'),
-        password=os.getenv('POSTGRES_PASSWORD')
+DSN = (
+    f"host={os.getenv('POSTGRES_HOST')} "
+    f"port={os.getenv('POSTGRES_PORT')} "
+    f"dbname={os.getenv('POSTGRES_DB')} "
+    f"user={os.getenv('POSTGRES_USER')} "
+    f"password={os.getenv('POSTGRES_PASSWORD')}"
     )
+
+class PGConnectionPool():
+    def __init__(self):
+        self.pool = (AsyncConnectionPool
+            (
+            conninfo = DSN,
+            min_size = 1,
+            max_size = 5,
+            open = False
+            )
+        )
+
+    async def open_connection(self):
+        await self.pool.open()
+
+    async def close_connection(self):
+        await self.pool.close()
+
+    def get_conn(self):
+        return self.pool.connection()
+
 
 def get_redis_connection():
     return Redis(host=os.getenv('REDIS_HOST'),

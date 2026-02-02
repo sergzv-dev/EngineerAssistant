@@ -1,74 +1,79 @@
 from models import UserInDB, UserLoginInDB, MessageModel, Answer, Question, MessageGet, MessagesOut
-from connections import get_pg_connection
+from connections import PGConnectionPool
 
 class Repository:
-    @classmethod
-    def get_conn(cls):
-        return get_pg_connection()
+    def __init__(self):
+        self.connection = PGConnectionPool()
+
+    def get_conn(self):
+        return self.connection.get_conn()
 
 class UserRepository(Repository):
-    def add_user(self, user: UserInDB) -> int:
-        with self.get_conn() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute('''INSERT INTO users (username, email, hashed_password)
+    async def add_user(self, user: UserInDB) -> int:
+        async with self.get_conn() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute('''INSERT INTO users (username, email, hashed_password)
                                 VALUES (%(username)s, %(email)s, %(hashed_password)s) RETURNING id''',
                                user.model_dump(include={'username', 'email', 'hashed_password'}))
-                user_id = int(cursor.fetchone()[0])
+                row = await cursor.fetchone()
+                user_id = int(row[0])
                 return user_id
 
-    def get_user_auth_data(self, username) -> UserLoginInDB|None:
-        with self.get_conn() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute('SELECT id, hashed_password FROM users WHERE username = %(username)s',
+    async def get_user_auth_data(self, username) -> UserLoginInDB|None:
+        async with self.get_conn() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute('SELECT id, hashed_password FROM users WHERE username = %(username)s',
                                {'username': username})
-                row = cursor.fetchone()
+                row = await cursor.fetchone()
                 if not row:
                     return None
                 return UserLoginInDB(id=row[0], hashed_password=row[1])
 
 #test methods
-    def get_all_users(self):
-        with self.get_conn() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute('SELECT * FROM users')
-                rows = cursor.fetchall()
+    async def get_all_users(self):
+        async with self.get_conn() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute('SELECT * FROM users')
+                rows = await cursor.fetchall()
                 return rows
 
 
 class MessageRepository(Repository):
-    def put_message(self, message: Question|Answer) -> int:
-        with self.get_conn() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute('''INSERT INTO messages (user_id, message, message_type)
+    async def put_message(self, message: Question|Answer) -> int:
+        async with self.get_conn() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute('''INSERT INTO messages (user_id, message, message_type)
                                   VALUES (%(user_id)s, %(message)s, %(message_type)s) RETURNING id''',
-                               message.model_dump(include={'user_id', 'message', 'message_type'}))
-                message_id = int(cursor.fetchone()[0])
+                                message.model_dump(include={'user_id', 'message', 'message_type'}))
+                row = await cursor.fetchone()
+                message_id = int(row[0])
                 return message_id
 
-    def get_messages(self, req: MessageGet) -> MessagesOut:
-        with self.get_conn() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute('''SELECT * FROM messages WHERE user_id = %(user_id)s
+    async def get_messages(self, req: MessageGet) -> MessagesOut:
+        async with self.get_conn() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute('''SELECT * FROM messages WHERE user_id = %(user_id)s
                                   ORDER BY id DESC LIMIT %(limit)s OFFSET %(offset)s''',
                                req.model_dump())
-                rows = cursor.fetchall()
+                rows = await cursor.fetchall()
                 data = [MessageModel(id=row[0], user_id=row[1], message=row[2], message_type=row[3], created_at=row[4]) for row in rows]
-                cursor.execute('SELECT COUNT(*) FROM messages WHERE user_id = %(user_id)s', {'user_id': req.user_id})
-                total = cursor.fetchone()[0]
+                await cursor.execute('SELECT COUNT(*) FROM messages WHERE user_id = %(user_id)s', {'user_id': req.user_id})
+                row = await cursor.fetchone()
+                total = row[0]
                 return MessagesOut(limit = req.limit, offset = req.offset, total = total, data=data)
 
-    def get_last_question(self, user_id: int) -> MessageModel:
-        with self.get_conn() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute('''SELECT * FROM messages WHERE user_id = %(user_id)s AND message_type = 'Q' ORDER BY id DESC LIMIT 1''',
+    async def get_last_question(self, user_id: int) -> MessageModel:
+        async with self.get_conn() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute('''SELECT * FROM messages WHERE user_id = %(user_id)s AND message_type = 'Q' ORDER BY id DESC LIMIT 1''',
                                {'user_id': user_id})
-                row = cursor.fetchone()
+                row = await cursor.fetchone()
                 return MessageModel(id=row[0], user_id=row[1], message=row[2], message_type=row[3], created_at=row[4])
 
-    def get_last_answer(self, user_id: int) -> MessageModel:
-        with self.get_conn() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute('''SELECT * FROM messages WHERE user_id = %(user_id)s AND message_type = 'A' ORDER BY id DESC LIMIT 1''',
+    async def get_last_answer(self, user_id: int) -> MessageModel:
+        async with self.get_conn() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute('''SELECT * FROM messages WHERE user_id = %(user_id)s AND message_type = 'A' ORDER BY id DESC LIMIT 1''',
                                {'user_id': user_id})
-                row = cursor.fetchone()
+                row = await cursor.fetchone()
                 return MessageModel(id=row[0], user_id=row[1], message=row[2], message_type=row[3], created_at=row[4])
