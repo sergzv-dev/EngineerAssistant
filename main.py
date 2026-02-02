@@ -68,7 +68,7 @@ async def question(req_data: QuestionsCreate, user_id: Annotated[int, Depends(ge
         message_id = await t_broker.add_task(question_data)
         return ServerResponse(obj= f'message id: {message_id}', status='created')
     except BrokerUnavailable:
-        raise HTTPException(status_code=503)
+        raise HTTPException(status_code=503, detail='Task broker unavailable')
 
 @app.get('/question/chat')
 async def get_chat(user_id: Annotated[int, Depends(get_current_userid)],

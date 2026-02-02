@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from datetime import datetime
 
+#user
 class User(BaseModel):
     username: str
     email: str|None = None
@@ -8,16 +9,19 @@ class User(BaseModel):
 class UserInDB(User):
     hashed_password: str
 
+
 #sign up
 class UserSignUP(BaseModel):
     username: str
     password: str
     email: str
 
+
 #log in
 class UserLoginInDB(BaseModel):
     id: int
     hashed_password: str
+
 
 #messages
 class MessageModel(BaseModel):

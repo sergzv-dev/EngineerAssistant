@@ -17,7 +17,7 @@ def get_pg_connection():
     )
 
 #postgres_pool
-DSN = (
+DSN: str = (
     f"host={os.getenv('POSTGRES_HOST')} "
     f"port={os.getenv('POSTGRES_PORT')} "
     f"dbname={os.getenv('POSTGRES_DB')} "

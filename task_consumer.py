@@ -6,10 +6,6 @@ from repository import MessageRepository
 from models import Answer
 
 async def task_consumer():
-    print('Worker started')
-    init_pool()
-    await open_pg_pool_connection()
-
     redis_client = get_redis_connection()
     message_repo = MessageRepository()
 
@@ -29,8 +25,23 @@ async def task_consumer():
             print("Worker error:", e)
             await asyncio.sleep(1)
 
-        finally:
-            await close_pg_pool_connection()
+
+async def main():
+    print('Worker started')
+
+    init_pool()
+    await open_pg_pool_connection()
+
+    try:
+        await task_consumer()
+
+    except KeyboardInterrupt:
+        print('Stopping worker')
+
+    finally:
+        print('Closing connection')
+        await close_pg_pool_connection()
+
 
 if __name__ == '__main__':
-    asyncio.run(task_consumer())
+    asyncio.run(main())
