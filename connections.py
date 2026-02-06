@@ -25,12 +25,12 @@ DSN: str = (
     f"password={os.getenv('POSTGRES_PASSWORD')}"
     )
 
-pool: AsyncConnectionPool|None = None
+_pool: AsyncConnectionPool|None = None
 
 def init_pool():
-    global pool
-    if pool is None:
-        pool = AsyncConnectionPool(
+    global _pool
+    if _pool is None:
+        _pool = AsyncConnectionPool(
             conninfo=DSN,
             min_size=1,
             max_size=5,
@@ -38,19 +38,18 @@ def init_pool():
             )
 
 async def open_pg_pool_connection():
-    if pool is None:
+    if _pool is None:
         raise RuntimeError("PostgreSQL pool is not initialized")
-    await pool.open()
+    await _pool.open()
 
 async def close_pg_pool_connection():
-    if pool is None:
-        raise RuntimeError("PostgreSQL pool is not initialized")
-    await pool.close()
+    if _pool is not None:
+        await _pool.close()
 
 def get_pg_pool_connection():
-    if pool is None:
+    if _pool is None:
         raise RuntimeError("PostgreSQL pool is not initialized")
-    return pool.connection()
+    return _pool.connection()
 
 
 #redis
