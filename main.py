@@ -5,8 +5,7 @@ from task_broker import TaskBroker
 from models import (UserInDB, UserSignUP, MessageGet, MessagesOut, Question,
                     QuestionsCreate, ServerResponse, TokenResponse)
 from repository import UserRepository, MessageRepository
-from security.hash_manager import hash_password, verify_password
-from security.token_manager import create_access_token, verify_token
+from security_module import hash_password, verify_password, create_access_token, verify_token
 import jwt
 from custom_exceptions import BrokerUnavailable
 from contextlib import asynccontextmanager
