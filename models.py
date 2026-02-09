@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
+from typing import Literal
 
 #user
 class User(BaseModel):
@@ -60,3 +61,12 @@ class ServerResponse(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str
+
+#tg bot models
+class TGUserMode(BaseModel):
+    user_id: int
+    mode: Literal["execute", "main"]
+
+class TGGetAnswer(BaseModel):
+    user_id: int
+    last_message_id: int

@@ -1,4 +1,4 @@
-from models import UserInDB, UserLoginInDB, MessageModel, Answer, Question, MessageGet, MessagesOut
+from models import UserInDB, UserLoginInDB, MessageModel, Answer, Question, MessageGet, MessagesOut, TGGetAnswer
 from connections import get_pg_pool_connection
 
 class Repository:
@@ -74,4 +74,35 @@ class MessageRepository(Repository):
                 await cursor.execute('''SELECT * FROM messages WHERE user_id = %(user_id)s AND message_type = 'A' ORDER BY id DESC LIMIT 1''',
                                {'user_id': user_id})
                 row = await cursor.fetchone()
+                return MessageModel(id=row[0], user_id=row[1], message=row[2], message_type=row[3], created_at=row[4])
+
+
+class TelegramRepository(Repository):
+    async def register_tg_user(self,user_id: int, telegram_id: int):
+        async with self.get_conn() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute('''INSERT INTO users (telegram_id)
+                                    WHERE user_id = %(user_id)s
+                                    VALUES %(telegram_id)s''',
+                                     {'user_id': user_id,'telegram_id': telegram_id}
+                                     )
+
+    async def get_user_id_by_tg(self, telegram_id: int) -> int:
+        async with self.get_conn() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute('SELECT id FROM users WHERE telegram_id = %(telegram_id)s', {'telegram_id': telegram_id})
+                row = await cursor.fetchone()
+                return int(row[0])
+
+    async def get_answer_for_tg(self, answer_data: TGGetAnswer) -> MessageModel|None:
+        async with self.get_conn() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute('''SELECT * FROM messages
+                                    WHERE user_id = %(user_id)s AND message_type = 'A' AND id < %(last_message_id)s
+                                    ORDER BY id DESC LIMIT 1''',
+                                     answer_data.model_dump()
+                                     )
+                row = await cursor.fetchone()
+                if not row:
+                    return None
                 return MessageModel(id=row[0], user_id=row[1], message=row[2], message_type=row[3], created_at=row[4])

@@ -10,7 +10,8 @@ def create_tables() -> None:
                     username TEXT NOT NULL UNIQUE,
                     email TEXT NOT NULL,
                     hashed_password TEXT NOT NULL,
-                    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                    telegram_id INTEGER UNIQUE
                 );
             """)
 
@@ -27,13 +28,17 @@ def create_tables() -> None:
             """)
 
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_messages_user_id_created ON messages (user_id, created_at DESC);")
+        conn.commit()
 
 
 def drop_tables() -> None:
     with get_pg_connection() as conn:
         with conn.cursor() as cursor:
-            cursor.execute("DROP TABLE users")
-            cursor.execute("DROP TABLE messages")
+            cursor.execute("""
+                DROP TABLE IF EXISTS messages CASCADE;
+                DROP TABLE IF EXISTS users CASCADE;
+            """)
+        conn.commit()
 
 
 create_tables()

@@ -4,7 +4,7 @@ from typing import Annotated
 from task_broker import TaskBroker
 from models import (UserInDB, UserSignUP, MessageGet, MessagesOut, Question,
                     QuestionsCreate, ServerResponse, TokenResponse)
-from repository import UserRepository, MessageRepository
+from repository import UserRepository, MessageRepository, TelegramRepository
 from security_module import hash_password, verify_password, create_access_token, verify_token
 import jwt
 from custom_exceptions import BrokerUnavailable
@@ -24,6 +24,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl = '/login')
 t_broker = TaskBroker()
 user_repo = UserRepository()
 message_repo = MessageRepository()
+telegram_repo = TelegramRepository()
 
 def get_current_userid(token: Annotated[str, Depends(oauth2_scheme)]) -> int:
     try:
@@ -75,6 +76,11 @@ async def get_chat(user_id: Annotated[int, Depends(get_current_userid)],
                    offset: Annotated[int, Query(ge=0)] = 0,
                    ) -> MessagesOut:
     return await message_repo.get_messages(MessageGet(limit=limit, offset=offset, user_id=user_id))
+
+@app.post('/tg_register')
+async def tg_register(user_id: Annotated[int, Depends(get_current_userid)], telegram_id: Annotated[int,]):
+    await telegram_repo.register_tg_user(user_id=user_id, telegram_id=telegram_id)
+    return ServerResponse(obj=f'telegram id: {telegram_id}', status='registered')
 
 #test endpoints
 @app.get('/users/all')
