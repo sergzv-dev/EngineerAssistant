@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status, Query
+from fastapi import FastAPI, Depends, HTTPException, status, Query, Body
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from typing import Annotated
 from task_broker import TaskBroker
@@ -78,7 +78,7 @@ async def get_chat(user_id: Annotated[int, Depends(get_current_userid)],
     return await message_repo.get_messages(MessageGet(limit=limit, offset=offset, user_id=user_id))
 
 @app.post('/tg_register')
-async def tg_register(user_id: Annotated[int, Depends(get_current_userid)], telegram_id: Annotated[int,]):
+async def tg_register(telegram_id: Annotated[int, Body], user_id: Annotated[int, Depends(get_current_userid)]):
     await telegram_repo.register_tg_user(user_id=user_id, telegram_id=telegram_id)
     return ServerResponse(obj=f'telegram id: {telegram_id}', status='registered')
 
