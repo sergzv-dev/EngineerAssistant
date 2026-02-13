@@ -75,6 +75,7 @@ async def execute(message: Message):
         tg_answer = await db_tg_repository.get_answer_for_tg(answer_data)
         if tg_answer:
             await message.answer(tg_answer.message)
+            return
         await asyncio.sleep(delay)
 
     await message.answer("The server is unavailable, please try again later")

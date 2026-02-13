@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status, Query, Body
+from fastapi import FastAPI, Depends, HTTPException, status, Query, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from typing import Annotated
 from task_broker import TaskBroker
@@ -20,6 +20,13 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl = '/login')
+
+# @app.middleware("http")
+# async def debug_func(request: Request, call_next):
+#     print(f"REQUEST: \n", dict(request))
+#     print("HEADERS: \n", dict(request.headers))
+#     print("AUTH HEADER:", request.headers.get("authorization"))
+#     return await call_next(request)
 
 t_broker = TaskBroker()
 user_repo = UserRepository()
@@ -78,7 +85,7 @@ async def get_chat(user_id: Annotated[int, Depends(get_current_userid)],
     return await message_repo.get_messages(MessageGet(limit=limit, offset=offset, user_id=user_id))
 
 @app.post('/tg_register')
-async def tg_register(telegram_id: Annotated[int, Body], user_id: Annotated[int, Depends(get_current_userid)]):
+async def tg_register(telegram_id: Annotated[int, Query], user_id: Annotated[int, Depends(get_current_userid)]):
     await telegram_repo.register_tg_user(user_id=user_id, telegram_id=telegram_id)
     return ServerResponse(obj=f'telegram id: {telegram_id}', status='registered')
 

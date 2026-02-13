@@ -42,3 +42,4 @@ def drop_tables() -> None:
 
 
 create_tables()
+# drop_tables()

@@ -81,9 +81,9 @@ class TelegramRepository(Repository):
     async def register_tg_user(self,user_id: int, telegram_id: int):
         async with self.get_conn() as conn:
             async with conn.cursor() as cursor:
-                await cursor.execute('''INSERT INTO users (telegram_id)
-                                    WHERE user_id = %(user_id)s
-                                    VALUES %(telegram_id)s''',
+                await cursor.execute('''UPDATE users
+                                    SET telegram_id = %(telegram_id)s
+                                    WHERE id = %(user_id)s''',
                                      {'user_id': user_id,'telegram_id': telegram_id}
                                      )
 
@@ -98,7 +98,7 @@ class TelegramRepository(Repository):
         async with self.get_conn() as conn:
             async with conn.cursor() as cursor:
                 await cursor.execute('''SELECT * FROM messages
-                                    WHERE user_id = %(user_id)s AND message_type = 'A' AND id < %(last_message_id)s
+                                    WHERE user_id = %(user_id)s AND message_type = 'A' AND id > %(last_message_id)s
                                     ORDER BY id DESC LIMIT 1''',
                                      answer_data.model_dump()
                                      )
