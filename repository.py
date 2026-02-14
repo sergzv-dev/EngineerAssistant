@@ -87,11 +87,12 @@ class TelegramRepository(Repository):
                                      {'user_id': user_id,'telegram_id': telegram_id}
                                      )
 
-    async def get_user_id_by_tg(self, telegram_id: int) -> int:
+    async def get_user_id_by_tg(self, telegram_id: int) -> int|None:
         async with self.get_conn() as conn:
             async with conn.cursor() as cursor:
                 await cursor.execute('SELECT id FROM users WHERE telegram_id = %(telegram_id)s', {'telegram_id': telegram_id})
                 row = await cursor.fetchone()
+                if not row: return None
                 return int(row[0])
 
     async def get_answer_for_tg(self, answer_data: TGGetAnswer) -> MessageModel|None:

@@ -1,6 +1,6 @@
 from aiogram.filters import Command, CommandStart
 from aiogram.types import Message
-from aiogram import Router
+from aiogram import Router, BaseMiddleware
 from models import TGUserMode, Question, TGGetAnswer
 from redis_tg_repository import TGUserModeManager
 from repository import TelegramRepository, MessageRepository
@@ -9,11 +9,23 @@ from custom_exceptions import BrokerUnavailable
 import asyncio
 
 router = Router()
+authorized_router = Router()
 
 user_mode_manager = TGUserModeManager()
 db_tg_repository = TelegramRepository()
 db_message_repo = MessageRepository()
 db_t_broker = TaskBroker()
+
+class AuthMiddleware(BaseMiddleware):
+    async def __call__(self, handler, event: Message, data):
+        db_user_id = await db_tg_repository.get_user_id_by_tg(int(event.from_user.id))
+        if not db_user_id:
+            await event.answer("register your tg id")
+            return None
+        data["db_user_id"] = db_user_id
+        return await handler(event, data)
+
+authorized_router.message.middleware(AuthMiddleware())
 
 @router.message(CommandStart())
 async def start_handler(message: Message):
@@ -30,7 +42,7 @@ async def help_handler(message: Message):
         """
     )
 
-@router.message(Command("execute"))
+@authorized_router.message(Command("execute"))
 async def execute_mode(message: Message):
     user_mode = TGUserMode(user_id=message.from_user.id, mode="execute")
     await user_mode_manager.change_user_status(user_mode)
@@ -46,16 +58,14 @@ async def stop(message: Message):
 async def get_user_id(message: Message):
     await message.answer(str(message.from_user.id))
 
-@router.message(lambda message: message.text and not message.text.startswith("/"))
-async def execute(message: Message):
+@authorized_router.message(lambda message: message.text and not message.text.startswith("/"))
+async def execute(message: Message, db_user_id: int):
     if await user_mode_manager.get_user_status(int(message.from_user.id)) != "execute":
         return
 
     if not message.text.isdigit():
         await message.answer("enter number")
         return
-
-    db_user_id = await db_tg_repository.get_user_id_by_tg(int(message.from_user.id))
 
     question_data = Question(user_id=db_user_id, message=message.text)
     db_message_id = await db_message_repo.put_message(question_data)
