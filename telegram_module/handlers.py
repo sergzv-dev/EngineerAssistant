@@ -2,7 +2,7 @@ from aiogram.filters import Command, CommandStart
 from aiogram.types import Message
 from aiogram import Router, BaseMiddleware
 from models import TGUserMode, Question, TGGetAnswer
-from redis_tg_repository import TGUserModeManager
+from repository_redis import TGUserModeManager
 from repository import TelegramRepository, MessageRepository
 from task_broker import TaskBroker
 from custom_exceptions import BrokerUnavailable

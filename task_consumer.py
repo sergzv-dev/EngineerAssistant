@@ -1,17 +1,18 @@
 from worker import Worker
 import json
 import asyncio
-from connections import get_redis_connection, init_pool, open_pg_pool_connection, close_pg_pool_connection
+from connections import init_pool, open_pg_pool_connection, close_pg_pool_connection
 from repository import MessageRepository
 from models import Answer
+from repository_redis import TaskConsumerRepo
 
 async def task_consumer():
-    redis_client = get_redis_connection()
+    redis_repo = TaskConsumerRepo()
     message_repo = MessageRepository()
 
     while True:
         try:
-            result = await redis_client.brpop('active_tasks', timeout=10)
+            result = await redis_repo.pop_task()
             if result is None:
                 continue
             _, payload = result
