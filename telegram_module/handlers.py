@@ -7,9 +7,11 @@ from repository import TelegramRepository, MessageRepository
 from task_broker import TaskBroker
 from custom_exceptions import BrokerUnavailable
 import asyncio
+from custom_filters import ExecuteModeFilter
 
 router = Router()
 authorized_router = Router()
+fallback_router = Router()
 
 user_mode_manager = TGUserModeManager()
 db_tg_repository = TelegramRepository()
@@ -23,9 +25,11 @@ class AuthMiddleware(BaseMiddleware):
             await event.answer("register your tg id")
             return None
         data["db_user_id"] = db_user_id
+        mode = await user_mode_manager.get_user_status(int(event.from_user.id))
+        data["mode"] = mode
         return await handler(event, data)
 
-authorized_router.message.middleware(AuthMiddleware())
+authorized_router.message.outer_middleware(AuthMiddleware())
 
 @router.message(CommandStart())
 async def start_handler(message: Message):
@@ -42,12 +46,6 @@ async def help_handler(message: Message):
         """
     )
 
-@authorized_router.message(Command("execute"))
-async def execute_mode(message: Message):
-    user_mode = TGUserMode(user_id=message.from_user.id, mode="execute")
-    await user_mode_manager.change_user_status(user_mode)
-    await message.answer("enter the number")
-
 @router.message(Command("stop"))
 async def stop(message: Message):
     user_mode = TGUserMode(user_id=message.from_user.id, mode="main")
@@ -58,11 +56,14 @@ async def stop(message: Message):
 async def get_user_id(message: Message):
     await message.answer(str(message.from_user.id))
 
-@authorized_router.message(lambda message: message.text and not message.text.startswith("/"))
-async def execute(message: Message, db_user_id: int):
-    if await user_mode_manager.get_user_status(int(message.from_user.id)) != "execute":
-        return
+@authorized_router.message(Command("execute"))
+async def execute_mode(message: Message):
+    user_mode = TGUserMode(user_id=message.from_user.id, mode="execute")
+    await user_mode_manager.change_user_status(user_mode)
+    await message.answer("enter the number")
 
+@authorized_router.message(ExecuteModeFilter(), lambda message: message.text and not message.text.startswith("/"))
+async def execute(message: Message, db_user_id: int):
     if not message.text.isdigit():
         await message.answer("enter number")
         return
@@ -89,3 +90,8 @@ async def execute(message: Message, db_user_id: int):
         await asyncio.sleep(delay)
 
     await message.answer("The server is unavailable, please try again later")
+
+@fallback_router.message()
+async def fallback(message: Message):
+    await message.answer("Unknown command")
+    return
