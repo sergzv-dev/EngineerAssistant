@@ -51,6 +51,11 @@ def get_pg_pool_connection():
         raise RuntimeError("PostgreSQL pool is not initialized")
     return _pool.connection()
 
+def get_pg_pool() -> AsyncConnectionPool:
+    if _pool is None:
+        raise RuntimeError("PostgreSQL pool is not initialized")
+    return _pool
+
 
 #redis
 def get_redis_connection():

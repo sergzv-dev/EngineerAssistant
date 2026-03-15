@@ -10,6 +10,7 @@ import jwt
 from custom_exceptions import BrokerUnavailable
 from contextlib import asynccontextmanager
 from connections import init_pool, open_pg_pool_connection, close_pg_pool_connection
+from connections import get_pg_pool
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -29,9 +30,6 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl = '/login')
 #     return await call_next(request)
 
 t_broker = TaskBroker()
-user_repo = UserRepository()
-message_repo = MessageRepository()
-telegram_repo = TelegramRepository()
 
 def get_current_userid(token: Annotated[str, Depends(oauth2_scheme)]) -> int:
     try:
@@ -46,9 +44,18 @@ def get_current_userid(token: Annotated[str, Depends(oauth2_scheme)]) -> int:
                             headers={'WWW-Authenticate': 'Bearer'})
     return user_id
 
+def get_user_repo() -> UserRepository:
+    return UserRepository(pool=get_pg_pool())
+
+def get_message_repo() -> MessageRepository:
+    return MessageRepository(pool = get_pg_pool())
+
+def get_tg_repo() -> TelegramRepository:
+    return TelegramRepository(pool=get_pg_pool())
+
 
 @app.post('/signup')
-async def signup(new_user: UserSignUP) -> ServerResponse:
+async def signup(new_user: UserSignUP, user_repo: Annotated[UserRepository, Depends(get_user_repo)]) -> ServerResponse:
     hashed_password = hash_password(new_user.password)
     data = new_user.model_dump(exclude={'password'})
     user = UserInDB(**data, hashed_password=hashed_password)
@@ -56,7 +63,8 @@ async def signup(new_user: UserSignUP) -> ServerResponse:
     return ServerResponse(obj=f'user id: {user_id}', status='created')
 
 @app.post('/login')
-async def login(form: Annotated[OAuth2PasswordRequestForm, Depends()]) -> TokenResponse:
+async def login(form: Annotated[OAuth2PasswordRequestForm, Depends()],
+        user_repo: Annotated[UserRepository, Depends(get_user_repo)]) -> TokenResponse:
     user = await user_repo.get_user_auth_data(form.username)
     if not user or not verify_password(form.password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
@@ -67,7 +75,9 @@ async def login(form: Annotated[OAuth2PasswordRequestForm, Depends()]) -> TokenR
 
 
 @app.post('/question')
-async def question(req_data: QuestionsCreate, user_id: Annotated[int, Depends(get_current_userid)]) -> ServerResponse:
+async def question(req_data: QuestionsCreate, user_id: Annotated[int, Depends(get_current_userid)],
+                   message_repo: Annotated[MessageRepository, Depends(get_message_repo)]
+                   ) -> ServerResponse:
     question_data = Question(user_id=user_id, message=req_data.message)
     message_id = await message_repo.put_message(question_data)
     question_data = question_data.model_copy(update={'id': message_id})
@@ -79,17 +89,21 @@ async def question(req_data: QuestionsCreate, user_id: Annotated[int, Depends(ge
 
 @app.get('/question/chat')
 async def get_chat(user_id: Annotated[int, Depends(get_current_userid)],
+                   message_repo: Annotated[MessageRepository, Depends(get_message_repo)],
                    limit: Annotated[int, Query(ge=1, le=100)] = 20,
                    offset: Annotated[int, Query(ge=0)] = 0,
                    ) -> MessagesOut:
     return await message_repo.get_messages(MessageGet(limit=limit, offset=offset, user_id=user_id))
 
 @app.post('/tg_register')
-async def tg_register(telegram_id: Annotated[int, Query], user_id: Annotated[int, Depends(get_current_userid)]):
+async def tg_register(telegram_id: Annotated[int, Query],
+                      user_id: Annotated[int, Depends(get_current_userid)],
+                      telegram_repo: Annotated[TelegramRepository, Depends(get_tg_repo)]
+                      ) -> ServerResponse:
     await telegram_repo.register_tg_user(user_id=user_id, telegram_id=telegram_id)
     return ServerResponse(obj=f'telegram id: {telegram_id}', status='registered')
 
 #test endpoints
 @app.get('/users/all')
-async def all_users():
+async def all_users(user_repo: Annotated[UserRepository, Depends(get_user_repo)]):
     return await user_repo.get_all_users()

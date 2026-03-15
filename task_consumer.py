@@ -5,10 +5,11 @@ from connections import init_pool, open_pg_pool_connection, close_pg_pool_connec
 from repository import MessageRepository
 from models import Answer
 from repository_redis import TaskConsumerRepo
+from connections import get_pg_pool
 
 async def task_consumer():
     redis_repo = TaskConsumerRepo()
-    message_repo = MessageRepository()
+    message_repo = MessageRepository(get_pg_pool())
 
     while True:
         try:

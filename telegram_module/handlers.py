@@ -8,18 +8,24 @@ from task_broker import TaskBroker
 from custom_exceptions import BrokerUnavailable
 import asyncio
 from custom_filters import ExecuteModeFilter
+from connections import get_pg_pool
 
 router = Router()
 authorized_router = Router()
 fallback_router = Router()
 
 user_mode_manager = TGUserModeManager()
-db_tg_repository = TelegramRepository()
-db_message_repo = MessageRepository()
+
+def get_db_tg_repository():
+    return TelegramRepository(pool=get_pg_pool())
+def get_db_message_repo():
+    return MessageRepository(pool=get_pg_pool())
+
 db_t_broker = TaskBroker()
 
 class AuthMiddleware(BaseMiddleware):
     async def __call__(self, handler, event: Message, data):
+        db_tg_repository = get_db_tg_repository()
         db_user_id = await db_tg_repository.get_user_id_by_tg(int(event.from_user.id))
         if not db_user_id:
             await event.answer("register your tg id")
@@ -64,6 +70,8 @@ async def execute_mode(message: Message):
 
 @authorized_router.message(ExecuteModeFilter(), lambda message: message.text and not message.text.startswith("/"))
 async def execute(message: Message, db_user_id: int):
+    db_message_repo = get_db_message_repo()
+    db_tg_repository = get_db_tg_repository()
     if not message.text.isdigit():
         await message.answer("enter number")
         return
