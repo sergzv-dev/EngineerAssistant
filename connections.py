@@ -46,14 +46,11 @@ async def close_pg_pool_connection():
     if _pool is not None:
         await _pool.close()
 
-def get_pg_pool_connection():
-    if _pool is None:
-        raise RuntimeError("PostgreSQL pool is not initialized")
-    return _pool.connection()
-
 def get_pg_pool() -> AsyncConnectionPool:
     if _pool is None:
         raise RuntimeError("PostgreSQL pool is not initialized")
+    if _pool.closed:
+        raise RuntimeError("PostgreSQL pool is closed")
     return _pool
 
 
